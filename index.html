@@ -92,6 +92,8 @@ async function init(){
     if(!r.ok){let bd='';try{bd=(await r.text()).slice(0,300)}catch(e){}throw new Error('Server returned '+r.status+' '+bd)}
     D=await r.json();
   }catch(e){return showErr('Could not load',e.message+'. Check your network and reload.')}
+  D.observations=(D.observations||[]).map((o,i)=>({obsId:o.obsId||o.ObservationID||'',location:o.location||o.Location||'',observation:o.observation||o.Observation||'',thumb:o.thumb||o.BeforeThumb||'',status:o.status||o.Status||'Open',correctiveAction:o.correctiveAction||o.CorrectiveAction||'',completedBy:o.completedBy||o.CompletedBy||'',completionDate:o.completionDate||o.CompletionDate||''}));
+  if(!D.observations.length||D.observations.some(o=>!o.obsId)||new Set(D.observations.map(o=>o.obsId)).size!==D.observations.length)return showErr('Data problem','The flow returned observations without a reference ID. In LO-02, open the Select step and map each field with an expression such as item()?[\'ObservationID\'].');
   D.observations.sort((a,b)=>String(a.obsId).localeCompare(String(b.obsId)));D.observations.forEach((o,i)=>o.srNo=i+1);
   D.observations.forEach(o=>{cl[o.obsId]={action:o.correctiveAction||'',photos:[]}});
   D.allClosed=D.observations.every(o=>String(o.status).toLowerCase().startsWith('close'));
