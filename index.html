@@ -89,7 +89,7 @@ async function init(){
   try{
     const r=await fetch(FLOW2_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'get',s:S,t:T})});
     if(r.status===404)return showErr('Link not valid','This link is invalid or has expired. Please use the latest e-mail.');
-    if(!r.ok)throw new Error('Server returned '+r.status);
+    if(!r.ok){let bd='';try{bd=(await r.text()).slice(0,300)}catch(e){}throw new Error('Server returned '+r.status+' '+bd)}
     D=await r.json();
   }catch(e){return showErr('Could not load',e.message+'. Check your network and reload.')}
   D.observations.sort((a,b)=>String(a.obsId).localeCompare(String(b.obsId)));D.observations.forEach((o,i)=>o.srNo=i+1);
@@ -179,7 +179,7 @@ async function submitClosure(){
       fileName:`Line_Observation_CLOSED_${D.assignedTo.replace(/ /g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`,excelBase64:xl};
     m.textContent='⏳ Sending…';
     const r=await fetch(FLOW2_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
-    if(!r.ok)throw new Error('Server returned '+r.status);
+    if(!r.ok){let bd='';try{bd=(await r.text()).slice(0,400)}catch(e){}throw new Error('Server returned '+r.status+' '+bd)}
     try{await dbDel('d:'+T)}catch(e){}
     $('app').classList.add('hidden');$('doneP').textContent=`${rows.length} point(s) closed. The updated Excel with corrective action and AFTER photos has been e-mailed to ${D.reportedBy}.`;$('done').classList.remove('hidden');scrollTo(0,0);
   }catch(e){console.error(e);m.style.color='#E31837';m.textContent='✕ '+e.message+' — your entries are saved on this device, tap Submit again.';btn.disabled=false}}
