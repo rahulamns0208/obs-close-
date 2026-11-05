@@ -42,6 +42,7 @@ footer{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px sol
 .state{padding:60px 24px;text-align:center}.state h2{margin:12px 0 6px}.state p{color:var(--s600);line-height:1.5;max-width:460px;margin:0 auto}
 .big{font-size:54px}.spin{width:38px;height:38px;border:4px solid var(--s200);border-top-color:var(--red);border-radius:50%;animation:sp 1s linear infinite;margin:0 auto}@keyframes sp{to{transform:rotate(360deg)}}
 .hidden{display:none!important}
+.reco{background:#EFF6FF;border-left:4px solid #3B82F6;padding:9px 12px;border-radius:8px;font-size:14px;line-height:1.5;white-space:pre-wrap;margin-bottom:10px}.reco.none{background:var(--s50);border-color:var(--s200);color:var(--s400)}
 .ro{background:var(--s50);padding:10px 12px;border-radius:9px;font-size:14px;white-space:pre-wrap;line-height:1.45}
 #cam{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:12px}
 #cam video{max-width:100%;max-height:72vh;border-radius:10px}#cam .info{color:#fff;font-size:13px;font-weight:600}
@@ -66,7 +67,7 @@ footer{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px sol
 
 <script>
 /* ===== CONFIG ===== */
-const FLOW2_URL='https://default37cd273a1cec4aaea29741480ea54f.8d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/14/workflows/b4900ac6630940589af277454dd7a4f3/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=wqhvZdiVrogS9BaobW-5CpFR9aoxsN_IbGQSRy5jH2I';   // from the new flow's HTTP trigger
+const FLOW2_URL='https://default37cd273a1cec4aaea29741480ea54f.8d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/11/workflows/67b9431663ac484f97d054e320d27af8/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=1fDTD1W5AtePZQ2UrOD1t5lp8Nd2CZxCEBjnauRwApQ';   // from the new flow's HTTP trigger
 const MAX_PH=5, MIN_ACTION=10;
 /* ================== */
 const $=id=>document.getElementById(id);
@@ -95,7 +96,7 @@ async function init(){
     if(!r.ok){let bd='';try{bd=(await r.text()).slice(0,300)}catch(e){}throw new Error('Server returned '+r.status+' '+bd)}
     D=await r.json();
   }catch(e){return showErr('Could not load',e.message+'. Check your network and reload.')}
-  D.observations=(D.observations||[]).map((o,i)=>({obsId:o.obsId||o.ObservationID||'',location:o.location||o.Location||'',observation:o.observation||o.Observation||'',thumb:o.thumb||o.BeforeThumb||'',status:o.status||o.Status||'Open',correctiveAction:o.correctiveAction||o.CorrectiveAction||'',completedBy:o.completedBy||o.CompletedBy||'',completionDate:o.completionDate||o.CompletionDate||''}));
+  D.observations=(D.observations||[]).map((o,i)=>({obsId:o.obsId||o.ObservationID||'',location:o.location||o.Location||'',observation:o.observation||o.Observation||'',recommendedAction:o.recommendedAction||o.RecommendedAction||'',thumb:o.thumb||o.BeforeThumb||'',status:o.status||o.Status||'Open',correctiveAction:o.correctiveAction||o.CorrectiveAction||'',completedBy:o.completedBy||o.CompletedBy||'',completionDate:o.completionDate||o.CompletionDate||''}));
   if(!D.observations.length||D.observations.some(o=>!o.obsId)||new Set(D.observations.map(o=>o.obsId)).size!==D.observations.length)return showErr('Data problem','The flow returned observations without a reference ID. In LO-02, open the Select step and map each field with an expression such as item()?[\'ObservationID\'].');
   D.observations.sort((a,b)=>String(a.obsId).localeCompare(String(b.obsId)));D.observations.forEach((o,i)=>o.srNo=i+1);
   D.observations.forEach(o=>{cl[o.obsId]={action:o.correctiveAction||'',photos:[]}});
@@ -115,6 +116,7 @@ function render(){
     return `<section class="card" id="c_${o.obsId}" data-id="${o.obsId}">
     <div class="ch"><span>Point ${o.srNo||''} &nbsp;·&nbsp; Ref <code>${esc(o.obsId)}</code></span><span class="tag ${ro?'ok':''}" id="tg_${o.obsId}">${ro?'Closed':'Open'}</span></div>
     <div class="cb"><div class="col"><div class="lab">Observation</div><div class="loc">📍 ${esc(o.location)}</div><div class="txt">${esc(o.observation)}</div>
+      <div class="lab">Recommended action</div><div class="reco ${o.recommendedAction?'':'none'}">${o.recommendedAction?esc(o.recommendedAction):'No recommendation given'}</div>
       ${o.thumb?`<div class="lab">Before photo</div><img class="before" src="data:image/jpeg;base64,${o.thumb}" alt="Before">`:''}</div>
     <div class="col">${ro?`<div class="lab">Corrective action</div><div class="ro">${esc(o.correctiveAction)}</div><p class="hint" style="margin-top:8px">Closed by ${esc(o.completedBy||'')} on ${esc(o.completionDate||'')}</p>`:
       `<div class="lab">Corrective action taken *</div><textarea data-k="${o.obsId}" placeholder="Describe what was done to fix this point…" maxlength="1000">${esc(cl[o.obsId].action)}</textarea><div class="cnt" id="n_${o.obsId}"></div>
@@ -147,25 +149,25 @@ function imgSize(b64){return new Promise(res=>{const i=new Image();i.onload=()=>
 const b64=buf=>{let s='';const a=new Uint8Array(buf);for(let i=0;i<a.length;i+=8192)s+=String.fromCharCode.apply(null,a.subarray(i,i+8192));return btoa(s)};
 async function buildXlsx(rows){
   const wb=new ExcelJS.Workbook(),ws=wb.addWorksheet('Sheet1');
-  [6,13,12,20,38,18,40,26,12,28,24,22,16].forEach((w,i)=>ws.getColumn(i+1).width=w);
+  [6,13,12,20,38,18,40,26,12,28,24,22,16,30].forEach((w,i)=>ws.getColumn(i+1).width=w);
   const fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFCE4D6'}},thin={style:'thin'},med={style:'medium'};
-  ws.mergeCells('A1:M1');const t=ws.getCell('A1');t.value=`AM/NS INDIA — Line Observation Status Report — ${D.line}`;t.font={name:'Arial',size:14,bold:true};t.fill=fill;t.alignment={horizontal:'center',vertical:'middle'};ws.getRow(1).height=30;
-  ['Sr. No','Date','Line','Location','Observation','Responsibility','Photos','AFTER \nPHOTO','Status','Corrective action/\nRecommendation','Obs ID','Observer Name','Observer SAP ID'].forEach((h,i)=>{const c=ws.getCell(2,i+1);c.value=h;c.font={name:'Arial',size:12,bold:true};c.fill=fill;c.alignment={horizontal:'center',vertical:'middle',wrapText:true};c.border={top:med,bottom:med,left:thin,right:thin}});ws.getRow(2).height=47;
+  ws.mergeCells('A1:N1');const t=ws.getCell('A1');t.value=`AM/NS INDIA — Line Observation Status Report — ${D.line}`;t.font={name:'Arial',size:14,bold:true};t.fill=fill;t.alignment={horizontal:'center',vertical:'middle'};ws.getRow(1).height=30;
+  ['Sr. No','Date','Line','Location','Observation','Responsibility','Photos','AFTER \nPHOTO','Status','Corrective action/\nRecommendation','Obs ID','Observer Name','Observer SAP ID','Recommended action\n(Observer)'].forEach((h,i)=>{const c=ws.getCell(2,i+1);c.value=h;c.font={name:'Arial',size:12,bold:true};c.fill=fill;c.alignment={horizontal:'center',vertical:'middle',wrapText:true};c.border={top:med,bottom:med,left:thin,right:thin}});ws.getRow(2).height=47;
   const colPx=40*7+5,TW=130,TH=98;
   for(let n=0;n<rows.length;n++){const o=rows[n],r=n+3,ph=o.after,pr=Math.max(1,Math.ceil(ph.length/2)),rowPx=Math.max(110,pr*(TH+8)+8);
-    [o.srNo||n+1,D.obsDate,D.line,o.locOnly,o.observation,D.assignedTo,'','',o.status,o.action,o.obsId,D.reportedBy,D.sapId||''].forEach((v,i)=>{const c=ws.getCell(r,i+1);c.value=v;c.font={name:'Arial',size:12};c.alignment={horizontal:'center',vertical:'middle',wrapText:true};c.border={top:thin,bottom:thin,left:thin,right:thin}});
+    [o.srNo||n+1,D.obsDate,D.line,o.locOnly,o.observation,D.assignedTo,'','',o.status,o.action,o.obsId,D.reportedBy,D.sapId||'',o.reco||''].forEach((v,i)=>{const c=ws.getCell(r,i+1);c.value=v;c.font={name:'Arial',size:12};c.alignment={horizontal:'center',vertical:'middle',wrapText:true};c.border={top:thin,bottom:thin,left:thin,right:thin}});
     ws.getCell(r,9).dataValidation={type:'list',allowBlank:true,formulae:['"Open,Closed"']};
-    const hPt=Math.max(rowPx*.75,Math.ceil(Math.max(o.observation.length,o.action.length)/38)*16+10);ws.getRow(r).height=hPt;const actPx=hPt/.75;
+    const hPt=Math.max(rowPx*.75,Math.ceil(Math.max(o.observation.length,o.action.length,(o.reco||'').length)/38)*16+10);ws.getRow(r).height=hPt;const actPx=hPt/.75;
     if(o.thumb){const sz=await imgSize(o.thumb),s=Math.min(TW/sz.w,TH/sz.h),id=wb.addImage({base64:o.thumb,extension:'jpeg'});ws.addImage(id,{tl:{col:6+8/colPx,row:r-1+8/actPx},ext:{width:sz.w*s,height:sz.h*s},editAs:'oneCell'})}
     ph.forEach((p,k)=>{const s=Math.min(TW/p.w,TH/p.h),w=p.w*s,h=p.h*s,x=8+(k%2)*(TW+8),y=8+Math.floor(k/2)*(TH+8),id=wb.addImage({base64:p.data,extension:'jpeg'});ws.addImage(id,{tl:{col:7+x/(26*7+5),row:r-1+y/actPx},ext:{width:w,height:h},editAs:'oneCell'})})}
   return wb.xlsx.writeBuffer()}
 
 /* ---------- submit ---------- */
 function mailBody(rows,nClosed,nOpen){
-  const td='border:1px solid #ccc;padding:6px',tr=rows.map(o=>`<tr><td style="${td};text-align:center">${o.srNo}</td><td style="${td}">${esc(o.obsId)}</td><td style="${td}">${esc(o.locOnly)}</td><td style="${td}">${esc(o.observation)}</td><td style="${td};font-weight:bold;color:${o.status==='Closed'?'#10B981':'#C1121F'}">${o.status}</td><td style="${td}">${esc(o.action)}</td></tr>`).join('');
+  const td='border:1px solid #ccc;padding:6px',tr=rows.map(o=>`<tr><td style="${td};text-align:center">${o.srNo}</td><td style="${td}">${esc(o.obsId)}</td><td style="${td}">${esc(o.locOnly)}</td><td style="${td}">${esc(o.observation)}</td><td style="${td}">${esc(o.reco||'')}</td><td style="${td};font-weight:bold;color:${o.status==='Closed'?'#10B981':'#C1121F'}">${o.status}</td><td style="${td}">${esc(o.action)}</td></tr>`).join('');
   return `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1E293B"><p>Dear ${esc(D.reportedBy)},</p>
   <p><b>${esc(D.assignedTo)}</b> has updated the observations raised on <b>${esc(D.obsDate)}</b> on <b>${esc(D.line)}</b>: <b style="color:#10B981">${nClosed} closed</b>${nOpen?`, <b style="color:#C1121F">${nOpen} still open</b>`:''}. Corrective action and AFTER photos are in the attached Excel.</p>
-  <table style="border-collapse:collapse;font-size:13px"><tr style="background:#FCE4D6"><th style="${td}">Sr.</th><th style="${td}">Ref ID</th><th style="${td}">Location</th><th style="${td}">Observation</th><th style="${td}">Status</th><th style="${td}">Corrective action</th></tr>${tr}</table>
+  <table style="border-collapse:collapse;font-size:13px"><tr style="background:#FCE4D6"><th style="${td}">Sr.</th><th style="${td}">Ref ID</th><th style="${td}">Location</th><th style="${td}">Observation</th><th style="${td}">Recommended action</th><th style="${td}">Status</th><th style="${td}">Corrective action</th></tr>${tr}</table>
   <p style="font-size:12px;color:#475569">Updated on ${today()}. ${nOpen?'Open points will be submitted later through the same link. ':''}Please verify on site and update the Register (Verified By / Verification Date).</p><p>Regards,<br>${esc(D.assignedTo)}<br>AM/NS INDIA</p></div>`}
 async function submitClosure(){
   const btn=$('sendBtn'),m=$('msg');
@@ -180,7 +182,7 @@ async function submitClosure(){
     m.style.color='#F59E0B';m.textContent='⏳ Processing photos…';
     const rows=[];
     for(const o of D.observations){
-      const i=String(o.location).indexOf(' - '),base={obsId:o.obsId,srNo:o.srNo,observation:o.observation,locOnly:i>-1?o.location.slice(i+3):o.location,thumb:o.thumb};
+      const i=String(o.location).indexOf(' - '),base={obsId:o.obsId,srNo:o.srNo,observation:o.observation,reco:o.recommendedAction,locOnly:i>-1?o.location.slice(i+3):o.location,thumb:o.thumb};
       if(isClosedRow(o)){rows.push({...base,status:'Closed',action:o.correctiveAction||'',after:[],closing:false});continue}
       const c=cl[o.obsId];
       if(isDone(o.obsId)){const after=[];for(const f of c.photos){const p=await shrink(f);if(p)after.push(p)}rows.push({...base,status:'Closed',action:c.action.trim(),after,closing:true})}
@@ -190,11 +192,11 @@ async function submitClosure(){
     const payload={action:'close',s:S,t:T,closedBy:D.assignedTo,closedOn:today(),
       closures:closing.map(r=>({obsId:r.obsId,correctiveAction:r.action,photos:r.after.map((p,k)=>({fileName:`${r.obsId}_AFTER_${k+1}.jpg`,contentBase64:p.data}))})),
       subject:nOpen?`[PARTIAL – ${nOpen} open] Line Observation – ${nClosed} of ${rows.length} closed by ${D.assignedTo} – ${D.line}`:`[CLOSED] Line Observation – ${rows.length} point(s) closed by ${D.assignedTo} – ${D.line}`,
-      bodyHtml:mailBody(rows,nClosed,nOpen),fileName:`Line_Observation_${nOpen?'STATUS':'CLOSED'}_${D.assignedTo.replace(/ /g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`,excelBase64:xl};
+      bodyHtml:mailBody(rows,nClosed,nOpen),attachments:[{name:'__XL__',content:xl},...closing.flatMap(r=>r.after.map((p,k)=>({name:`${r.obsId}_AFTER_${k+1}.jpg`,content:p.data})))],fileName:`Line_Observation_${nOpen?'STATUS':'CLOSED'}_${D.assignedTo.replace(/ /g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`,excelBase64:xl};payload.attachments[0].name=payload.fileName;
     m.textContent='⏳ Sending…';
     const r=await fetch(FLOW2_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
     if(!r.ok){let bd='';try{bd=(await r.text()).slice(0,400)}catch(e){}throw new Error('Server returned '+r.status+' '+bd)}
-    closing.forEach(x=>{cl[x.obsId]={action:'',photos:[]}});await doSave();
+    closing.forEach(x=>{cl[x.obsId]={action:'',photos:[]};const o=D.observations.find(z=>z.obsId===x.obsId);if(o){o.status='Closed';o.correctiveAction=x.action}});await doSave();
     $('app').classList.add('hidden');
     $('doneP').innerHTML=`${closing.length} point(s) closed now${nOpen?`, <b>${nOpen} still open</b>`:''}. The updated Excel has been e-mailed to ${esc(D.reportedBy)}.`+(nOpen?`<br><br><button class="btn solid" onclick="location.reload()">Continue with remaining points</button>`:'');
     $('done').classList.remove('hidden');scrollTo(0,0);
