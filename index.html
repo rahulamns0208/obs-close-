@@ -48,7 +48,7 @@ footer{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px sol
 #cam video{max-width:100%;max-height:72vh;border-radius:10px}#cam .info{color:#fff;font-size:13px;font-weight:600}
 </style></head><body>
 <div class="wrap">
-<header><h1>AM/NS INDIA — Pune Facility</h1><p>Line Observation Closure (5S / UC / UA) &nbsp;·&nbsp; <span style="opacity:.7">page v7</span></p></header>
+<header><h1>AM/NS INDIA — Pune Facility</h1><p>Line Observation Closure (5S / UC / UA) &nbsp;·&nbsp; <span style="opacity:.7">page v8</span></p></header>
 
 <div id="loading" class="state"><div class="spin"></div><p style="margin-top:14px">Loading your observations…</p></div>
 <div id="error" class="state hidden"><div class="big">⚠️</div><h2 id="errT">Link not valid</h2><p id="errP"></p></div>
@@ -113,17 +113,16 @@ async function init(){
 const isClosedRow=o=>!!o&&String(o.status).toLowerCase().startsWith('close');
 const isDone=id=>{const c=cl[id];return c.action.trim().length>=MIN_ACTION&&c.photos.length>0};
 function render(){
-  $('list').innerHTML=D.observations.map(o=>{const ro=String(o.status).toLowerCase().startsWith('close');
+  $('list').innerHTML=D.observations.map(o=>{const ro=String(o.status).toLowerCase().startsWith('close');const rb=`<div class="col" style="border-top:1px solid var(--s200)"><div class="lab">Recommended action</div><div class="reco ${o.recommendedAction?'':'none'}" style="margin-bottom:0">${o.recommendedAction?esc(o.recommendedAction):(D.hasReco?'No recommendation given':'Register column RecommendedAction not found - add it to tblObservations and map it in LO-01')}</div></div>`;
     return `<section class="card" id="c_${o.obsId}" data-id="${o.obsId}">
     <div class="ch"><span>Point ${o.srNo||''} &nbsp;·&nbsp; Ref <code>${esc(o.obsId)}</code></span><span class="tag ${ro?'ok':''}" id="tg_${o.obsId}">${ro?'Closed':'Open'}</span></div>
     <div class="cb"><div class="col"><div class="lab">Observation</div><div class="loc">📍 ${esc(o.location)}</div><div class="txt">${esc(o.observation)}</div>
-      <div class="lab">Recommended action</div><div class="reco ${o.recommendedAction?'':'none'}">${o.recommendedAction?esc(o.recommendedAction):(D.hasReco?'No recommendation given':'Register column RecommendedAction not found - add it to tblObservations and map it in LO-01')}</div>
       ${o.thumb?`<div class="lab">Before photo</div><img class="before" src="data:image/jpeg;base64,${o.thumb}" alt="Before">`:''}</div>
-    <div class="col">${ro?`<div class="lab">Corrective action</div><div class="ro">${esc(o.correctiveAction)}</div><p class="hint" style="margin-top:8px">Closed by ${esc(o.completedBy||'')} on ${esc(o.completionDate||'')}</p>`:
+    <div class="col">${ro?`<div class="lab">Corrective action</div><div class="ro">${o.correctiveAction?esc(o.correctiveAction):'<span style="color:#C1121F">Status is Closed in the register, but no corrective action was saved. Check Update a row in LO-02 (CorrectiveAction, CompletedBy, CompletionDate).</span>'}</div><p class="hint" style="margin-top:8px">Closed${o.completedBy?' by '+esc(o.completedBy):''}${o.completionDate?' on '+esc(o.completionDate):''}</p>`:
       `<div class="lab">Corrective action taken *</div><textarea data-k="${o.obsId}" placeholder="Describe what was done to fix this point…" maxlength="1000">${esc(cl[o.obsId].action)}</textarea><div class="cnt" id="n_${o.obsId}"></div>
       <div class="lab" style="margin-top:10px">AFTER photos * <span class="hint">(max ${MAX_PH})</span></div>
       <div class="btns"><button class="btn solid" type="button" onclick="openCam('${o.obsId}')">📷 Take photo</button><button class="btn" type="button" onclick="document.getElementById('f_${o.obsId}').click()">🖼 Gallery</button>
-      <input type="file" id="f_${o.obsId}" data-f="${o.obsId}" accept="image/*" multiple hidden></div><div class="pv" id="pv_${o.obsId}"></div><div class="err" id="rq_${o.obsId}"></div>`}</div></div></section>`}).join('');
+      <input type="file" id="f_${o.obsId}" data-f="${o.obsId}" accept="image/*" multiple hidden></div><div class="pv" id="pv_${o.obsId}"></div><div class="err" id="rq_${o.obsId}"></div>`}</div></div>${rb}</section>`}).join('');
   D.observations.forEach(o=>{if(!String(o.status).toLowerCase().startsWith('close')){prev(o.obsId);cnt(o.obsId)}});refresh()}
 const cnt=id=>{const e=$('n_'+id);if(e)e.textContent=cl[id].action.length+' / 1000'};
 function prev(id){const b=$('pv_'+id);if(!b)return;b.innerHTML='';cl[id].photos.forEach((f,i)=>{const d=document.createElement('div');d.className='th';d.innerHTML=`<img src="${URL.createObjectURL(f)}"><button type="button">✕</button>`;d.querySelector('button').onclick=()=>{cl[id].photos.splice(i,1);prev(id);refresh();saveDraft(true)};b.appendChild(d)})}
