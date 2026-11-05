@@ -48,7 +48,7 @@ footer{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px sol
 #cam video{max-width:100%;max-height:72vh;border-radius:10px}#cam .info{color:#fff;font-size:13px;font-weight:600}
 </style></head><body>
 <div class="wrap">
-<header><h1>AM/NS INDIA — Pune Facility</h1><p>Line Observation Closure (5S / UC / UA)</p></header>
+<header><h1>AM/NS INDIA — Pune Facility</h1><p>Line Observation Closure (5S / UC / UA) &nbsp;·&nbsp; <span style="opacity:.7">page v7</span></p></header>
 
 <div id="loading" class="state"><div class="spin"></div><p style="margin-top:14px">Loading your observations…</p></div>
 <div id="error" class="state hidden"><div class="big">⚠️</div><h2 id="errT">Link not valid</h2><p id="errP"></p></div>
@@ -68,7 +68,7 @@ footer{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px sol
 <script>
 /* ===== CONFIG ===== */
 const FLOW2_URL='https://default37cd273a1cec4aaea29741480ea54f.8d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/14/workflows/b4900ac6630940589af277454dd7a4f3/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=wqhvZdiVrogS9BaobW-5CpFR9aoxsN_IbGQSRy5jH2I';   // from the new flow's HTTP trigger
-const MAX_PH=5, MIN_ACTION=10;
+const MAX_PH=5, MIN_ACTION=5;
 /* ================== */
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -96,6 +96,7 @@ async function init(){
     if(!r.ok){let bd='';try{bd=(await r.text()).slice(0,300)}catch(e){}throw new Error('Server returned '+r.status+' '+bd)}
     D=await r.json();
   }catch(e){return showErr('Could not load',e.message+'. Check your network and reload.')}
+  D.hasReco=(D.observations||[]).some(o=>Object.keys(o).some(k=>/^recommendedaction$/i.test(k)));
   D.observations=(D.observations||[]).map((o,i)=>({obsId:o.obsId||o.ObservationID||'',location:o.location||o.Location||'',observation:o.observation||o.Observation||'',recommendedAction:o.recommendedAction||o.RecommendedAction||'',thumb:o.thumb||o.BeforeThumb||'',status:o.status||o.Status||'Open',correctiveAction:o.correctiveAction||o.CorrectiveAction||'',completedBy:o.completedBy||o.CompletedBy||'',completionDate:o.completionDate||o.CompletionDate||''}));
   if(!D.observations.length||D.observations.some(o=>!o.obsId)||new Set(D.observations.map(o=>o.obsId)).size!==D.observations.length)return showErr('Data problem','The flow returned observations without a reference ID. In LO-02, open the Select step and map each field with an expression such as item()?[\'ObservationID\'].');
   D.observations.sort((a,b)=>String(a.obsId).localeCompare(String(b.obsId)));D.observations.forEach((o,i)=>o.srNo=i+1);
@@ -116,19 +117,19 @@ function render(){
     return `<section class="card" id="c_${o.obsId}" data-id="${o.obsId}">
     <div class="ch"><span>Point ${o.srNo||''} &nbsp;·&nbsp; Ref <code>${esc(o.obsId)}</code></span><span class="tag ${ro?'ok':''}" id="tg_${o.obsId}">${ro?'Closed':'Open'}</span></div>
     <div class="cb"><div class="col"><div class="lab">Observation</div><div class="loc">📍 ${esc(o.location)}</div><div class="txt">${esc(o.observation)}</div>
-      <div class="lab">Recommended action</div><div class="reco ${o.recommendedAction?'':'none'}">${o.recommendedAction?esc(o.recommendedAction):'No recommendation given'}</div>
+      <div class="lab">Recommended action</div><div class="reco ${o.recommendedAction?'':'none'}">${o.recommendedAction?esc(o.recommendedAction):(D.hasReco?'No recommendation given':'Register column RecommendedAction not found - add it to tblObservations and map it in LO-01')}</div>
       ${o.thumb?`<div class="lab">Before photo</div><img class="before" src="data:image/jpeg;base64,${o.thumb}" alt="Before">`:''}</div>
     <div class="col">${ro?`<div class="lab">Corrective action</div><div class="ro">${esc(o.correctiveAction)}</div><p class="hint" style="margin-top:8px">Closed by ${esc(o.completedBy||'')} on ${esc(o.completionDate||'')}</p>`:
       `<div class="lab">Corrective action taken *</div><textarea data-k="${o.obsId}" placeholder="Describe what was done to fix this point…" maxlength="1000">${esc(cl[o.obsId].action)}</textarea><div class="cnt" id="n_${o.obsId}"></div>
       <div class="lab" style="margin-top:10px">AFTER photos * <span class="hint">(max ${MAX_PH})</span></div>
       <div class="btns"><button class="btn solid" type="button" onclick="openCam('${o.obsId}')">📷 Take photo</button><button class="btn" type="button" onclick="document.getElementById('f_${o.obsId}').click()">🖼 Gallery</button>
-      <input type="file" id="f_${o.obsId}" data-f="${o.obsId}" accept="image/*" multiple hidden></div><div class="pv" id="pv_${o.obsId}"></div>`}</div></div></section>`}).join('');
+      <input type="file" id="f_${o.obsId}" data-f="${o.obsId}" accept="image/*" multiple hidden></div><div class="pv" id="pv_${o.obsId}"></div><div class="err" id="rq_${o.obsId}"></div>`}</div></div></section>`}).join('');
   D.observations.forEach(o=>{if(!String(o.status).toLowerCase().startsWith('close')){prev(o.obsId);cnt(o.obsId)}});refresh()}
 const cnt=id=>{const e=$('n_'+id);if(e)e.textContent=cl[id].action.length+' / 1000'};
 function prev(id){const b=$('pv_'+id);if(!b)return;b.innerHTML='';cl[id].photos.forEach((f,i)=>{const d=document.createElement('div');d.className='th';d.innerHTML=`<img src="${URL.createObjectURL(f)}"><button type="button">✕</button>`;d.querySelector('button').onclick=()=>{cl[id].photos.splice(i,1);prev(id);refresh();saveDraft(true)};b.appendChild(d)})}
 function refresh(){
   const open=D.observations.filter(o=>!String(o.status).toLowerCase().startsWith('close'));let n=0;
-  open.forEach(o=>{const d=isDone(o.obsId);if(d)n++;const c=$('c_'+o.obsId);if(c){c.classList.toggle('done',d);$('tg_'+o.obsId).textContent=d?'Ready to close':'Stays Open'}});
+  open.forEach(o=>{const d=isDone(o.obsId);if(d)n++;const c=$('c_'+o.obsId);if(c){c.classList.toggle('done',d);$('tg_'+o.obsId).textContent=d?'Ready to close':'Stays Open';const q=$('rq_'+o.obsId);if(q){const k=cl[o.obsId],need=[];if(k.action.trim().length<MIN_ACTION)need.push('corrective action (min '+MIN_ACTION+' characters)');if(!k.photos.length)need.push('at least 1 AFTER photo');q.textContent=d?'':'To close this point add: '+need.join(' and ')}}});
   const tot=D.observations.length,prior=tot-open.length;$('pt').textContent=`${prior+n} / ${tot} ready to close`;$('pf').style.width=(tot?(prior+n)/tot*100:0)+'%';
   $('sendBtn').disabled=!open.length}
 $('list').addEventListener('input',e=>{const k=e.target.dataset.k;if(k){cl[k].action=e.target.value;cnt(k);refresh();saveDraft()}});
@@ -149,17 +150,17 @@ function imgSize(b64){return new Promise(res=>{const i=new Image();i.onload=()=>
 const b64=buf=>{let s='';const a=new Uint8Array(buf);for(let i=0;i<a.length;i+=8192)s+=String.fromCharCode.apply(null,a.subarray(i,i+8192));return btoa(s)};
 async function buildXlsx(rows){
   const wb=new ExcelJS.Workbook(),ws=wb.addWorksheet('Sheet1');
-  [6,13,12,20,38,18,40,26,12,28,24,22,16,30].forEach((w,i)=>ws.getColumn(i+1).width=w);
+  [6,13,12,20,38,30,18,40,40,12,34,24,22,16].forEach((w,i)=>ws.getColumn(i+1).width=w);
   const fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFCE4D6'}},thin={style:'thin'},med={style:'medium'};
   ws.mergeCells('A1:N1');const t=ws.getCell('A1');t.value=`AM/NS INDIA — Line Observation Status Report — ${D.line}`;t.font={name:'Arial',size:14,bold:true};t.fill=fill;t.alignment={horizontal:'center',vertical:'middle'};ws.getRow(1).height=30;
-  ['Sr. No','Date','Line','Location','Observation','Responsibility','Photos','AFTER \nPHOTO','Status','Corrective action/\nRecommendation','Obs ID','Observer Name','Observer SAP ID','Recommended action\n(Observer)'].forEach((h,i)=>{const c=ws.getCell(2,i+1);c.value=h;c.font={name:'Arial',size:12,bold:true};c.fill=fill;c.alignment={horizontal:'center',vertical:'middle',wrapText:true};c.border={top:med,bottom:med,left:thin,right:thin}});ws.getRow(2).height=47;
+  ['Sr. No','Date','Line','Location','Observation','Recommended action\n(by Observer)','Responsibility','Photos\n(BEFORE)','AFTER \nPHOTO','Status','Corrective action\ntaken','Obs ID','Observer Name','Observer SAP ID'].forEach((h,i)=>{const c=ws.getCell(2,i+1);c.value=h;c.font={name:'Arial',size:12,bold:true};c.fill=fill;c.alignment={horizontal:'center',vertical:'middle',wrapText:true};c.border={top:med,bottom:med,left:thin,right:thin}});ws.getRow(2).height=47;
   const colPx=40*7+5,TW=130,TH=98;
   for(let n=0;n<rows.length;n++){const o=rows[n],r=n+3,ph=o.after,pr=Math.max(1,Math.ceil(ph.length/2)),rowPx=Math.max(110,pr*(TH+8)+8);
-    [o.srNo||n+1,D.obsDate,D.line,o.locOnly,o.observation,D.assignedTo,'','',o.status,o.action,o.obsId,D.reportedBy,D.sapId||'',o.reco||''].forEach((v,i)=>{const c=ws.getCell(r,i+1);c.value=v;c.font={name:'Arial',size:12};c.alignment={horizontal:'center',vertical:'middle',wrapText:true};c.border={top:thin,bottom:thin,left:thin,right:thin}});
-    ws.getCell(r,9).dataValidation={type:'list',allowBlank:true,formulae:['"Open,Closed"']};
+    [o.srNo||n+1,D.obsDate,D.line,o.locOnly,o.observation,o.reco||'',D.assignedTo,'','',o.status,o.action,o.obsId,D.reportedBy,D.sapId||''].forEach((v,i)=>{const c=ws.getCell(r,i+1);c.value=v;c.font={name:'Arial',size:12};c.alignment={horizontal:'center',vertical:'middle',wrapText:true};c.border={top:thin,bottom:thin,left:thin,right:thin}});
+    ws.getCell(r,10).dataValidation={type:'list',allowBlank:true,formulae:['"Open,Closed"']};
     const hPt=Math.max(rowPx*.75,Math.ceil(Math.max(o.observation.length,o.action.length,(o.reco||'').length)/38)*16+10);ws.getRow(r).height=hPt;const actPx=hPt/.75;
-    if(o.thumb){const sz=await imgSize(o.thumb),s=Math.min(TW/sz.w,TH/sz.h),id=wb.addImage({base64:o.thumb,extension:'jpeg'});ws.addImage(id,{tl:{col:6+8/colPx,row:r-1+8/actPx},ext:{width:sz.w*s,height:sz.h*s},editAs:'oneCell'})}
-    ph.forEach((p,k)=>{const s=Math.min(TW/p.w,TH/p.h),w=p.w*s,h=p.h*s,x=8+(k%2)*(TW+8),y=8+Math.floor(k/2)*(TH+8),id=wb.addImage({base64:p.data,extension:'jpeg'});ws.addImage(id,{tl:{col:7+x/(26*7+5),row:r-1+y/actPx},ext:{width:w,height:h},editAs:'oneCell'})})}
+    if(o.thumb){const sz=await imgSize(o.thumb),s=Math.min(TW/sz.w,TH/sz.h),id=wb.addImage({base64:o.thumb,extension:'jpeg'});ws.addImage(id,{tl:{col:7+8/colPx,row:r-1+8/actPx},ext:{width:sz.w*s,height:sz.h*s},editAs:'oneCell'})}
+    ph.forEach((p,k)=>{const s=Math.min(TW/p.w,TH/p.h),w=p.w*s,h=p.h*s,x=8+(k%2)*(TW+8),y=8+Math.floor(k/2)*(TH+8),id=wb.addImage({base64:p.data,extension:'jpeg'});ws.addImage(id,{tl:{col:8+x/colPx,row:r-1+y/actPx},ext:{width:w,height:h},editAs:'oneCell'})})}
   return wb.xlsx.writeBuffer()}
 
 /* ---------- submit ---------- */
@@ -185,7 +186,7 @@ async function submitClosure(){
       const i=String(o.location).indexOf(' - '),base={obsId:o.obsId,srNo:o.srNo,observation:o.observation,reco:o.recommendedAction,locOnly:i>-1?o.location.slice(i+3):o.location,thumb:o.thumb};
       if(isClosedRow(o)){rows.push({...base,status:'Closed',action:o.correctiveAction||'',after:[],closing:false});continue}
       const c=cl[o.obsId];
-      if(isDone(o.obsId)){const after=[];for(const f of c.photos){const p=await shrink(f);if(p)after.push(p)}rows.push({...base,status:'Closed',action:c.action.trim(),after,closing:true})}
+      if(isDone(o.obsId)){const after=[];for(const f of c.photos){const p=await shrink(f);if(p)after.push(p)}if(!after.length)throw new Error('Point '+o.srNo+': the photo could not be processed. Use Take photo, or JPG/PNG images.');rows.push({...base,status:'Closed',action:c.action.trim(),after,closing:true})}
       else rows.push({...base,status:'Open',action:c.action.trim(),after:[],closing:false})}
     m.textContent='⏳ Building updated Excel…';
     const xl=b64(await buildXlsx(rows)),closing=rows.filter(r=>r.closing),nClosed=rows.filter(r=>r.status==='Closed').length,nOpen=rows.length-nClosed;
@@ -196,9 +197,10 @@ async function submitClosure(){
     m.textContent='⏳ Sending…';
     const r=await fetch(FLOW2_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
     if(!r.ok){let bd='';try{bd=(await r.text()).slice(0,400)}catch(e){}throw new Error('Server returned '+r.status+' '+bd)}
+    let warn='';if(closing.length){try{await new Promise(r=>setTimeout(r,3000));const v=await fetch(FLOW2_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'get',s:S,t:T})});if(v.ok){const vd=await v.json(),st={};(vd.observations||[]).forEach(z=>st[z.obsId||z.ObservationID]=String(z.status||z.Status||''));const bad=closing.filter(x=>!st[x.obsId].toLowerCase().startsWith('close'));if(bad.length)warn=`<br><br><b style="color:#C1121F">Note: the register still shows ${bad.length} point(s) as Open. The mail was sent, but the Update a row step in LO-02 did not change Status. Please check LO-02 run history.</b>`}}catch(e){}}
     closing.forEach(x=>{cl[x.obsId]={action:'',photos:[]};const o=D.observations.find(z=>z.obsId===x.obsId);if(o){o.status='Closed';o.correctiveAction=x.action}});await doSave();
     $('app').classList.add('hidden');
-    $('doneP').innerHTML=`${closing.length} point(s) closed now${nOpen?`, <b>${nOpen} still open</b>`:''}. The updated Excel has been e-mailed to ${esc(D.reportedBy)}.`+(nOpen?`<br><br><button class="btn solid" onclick="location.reload()">Continue with remaining points</button>`:'');
+    $('doneP').innerHTML=`${closing.length} point(s) closed now${nOpen?`, <b>${nOpen} still open</b>`:''}. The updated Excel has been e-mailed to ${esc(D.reportedBy)}.`+warn+(nOpen?`<br><br><button class="btn solid" onclick="location.reload()">Continue with remaining points</button>`:'');
     $('done').classList.remove('hidden');scrollTo(0,0);
   }catch(e){console.error(e);m.style.color='#E31837';m.textContent='✕ '+e.message+' — your entries are saved on this device, tap Submit again.';btn.disabled=false}}
 init();
